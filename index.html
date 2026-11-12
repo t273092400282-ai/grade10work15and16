@@ -1,0 +1,1098 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>معالجة الأخطاء والاستثناءات في Python - الصف العاشر</title>
+    <!-- تحميل خط Cairo و Tajawal من Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&family=Fira+Code:wght@400;500;600&display=swap" rel="stylesheet">
+    <!-- تحميل Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- تحميل مكتبة Confetti للاحتفال بالإجابات الصحيحة -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Cairo', 'sans-serif'],
+                        mono: ['Fira Code', 'monospace'],
+                    },
+                    colors: {
+                        brandPink: '#FF4D8D',
+                        brandPurple: '#7C3AED',
+                        brandTeal: '#06B6D4',
+                        brandYellow: '#FBBF24',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Cairo', sans-serif;
+            background: linear-gradient(135deg, #fdf2f8 0%, #f3e8ff 50%, #ecfeff 100%);
+            min-height: 100vh;
+        }
+        .code-block {
+            font-family: 'Fira Code', monospace;
+            direction: ltr;
+            text-align: left;
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.92);
+            backdrop-filter: blur(12px);
+            border: 2px solid rgba(255, 255, 255, 0.8);
+        }
+        .tab-active {
+            background: linear-gradient(135deg, #FF4D8D 0%, #7C3AED 100%);
+            color: white;
+            box-shadow: 0 10px 20px -5px rgba(124, 58, 237, 0.4);
+            transform: translateY(-2px);
+        }
+        .tab-inactive {
+            background: white;
+            color: #4B5563;
+            border: 2px solid #E5E7EB;
+        }
+        .tab-inactive:hover {
+            border-color: #C084FC;
+            color: #7C3AED;
+        }
+        select.code-select {
+            font-family: 'Fira Code', monospace;
+            direction: ltr;
+            background-color: #1e293b;
+            color: #38bdf8;
+            border: 2px solid #475569;
+            border-radius: 0.5rem;
+            padding: 0.25rem 0.5rem;
+            font-weight: 600;
+            outline: none;
+            transition: all 0.2s;
+        }
+        select.code-select:focus {
+            border-color: #f472b6;
+            box-shadow: 0 0 0 3px rgba(244, 114, 182, 0.3);
+        }
+        select.code-select.correct {
+            border-color: #10b981;
+            background-color: #064e3b;
+            color: #6ee7b7;
+        }
+        select.code-select.wrong {
+            border-color: #ef4444;
+            background-color: #7f1d1d;
+            color: #fca5a5;
+        }
+        .step-badge {
+            transition: all 0.35s ease;
+        }
+        .step-active {
+            transform: scale(1.03);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.12);
+            ring: 3px;
+        }
+        /* تنسيقات الطباعة للشهادة */
+        @media print {
+            body * {
+                visibility: hidden;
+            }
+            #certificate-modal, #certificate-modal * {
+                visibility: visible;
+            }
+            #certificate-modal {
+                position: fixed;
+                left: 0;
+                top: 0;
+                width: 100%;
+                height: 100%;
+                background: white !important;
+                padding: 0 !important;
+                margin: 0 !important;
+            }
+            .no-print {
+                display: none !important;
+            }
+        }
+    </style>
+</head>
+<body class="text-gray-800 pb-16">
+
+    <!-- رسالة تنبيه عائمة مخصصة (بديل alert) -->
+    <div id="toast-message" class="fixed top-5 left-1/2 transform -translate-x-1/2 z-50 hidden transition-all duration-300">
+        <div class="bg-gradient-to-r from-purple-600 to-pink-500 text-white px-6 py-3 rounded-full shadow-2xl font-bold flex items-center gap-3 border-2 border-white">
+            <span id="toast-icon">✨</span>
+            <span id="toast-text">تم الحفظ بنجاح!</span>
+        </div>
+    </div>
+
+    <!-- الترويسة العلوية المشرقة -->
+    <header class="bg-gradient-to-l from-pink-500 via-purple-600 to-cyan-500 text-white shadow-xl rounded-b-3xl mb-8 relative overflow-hidden">
+        <!-- دوائر زخرفية في الخلفية -->
+        <div class="absolute top-0 right-0 w-64 h-64 bg-white opacity-10 rounded-full -mr-20 -mt-20 pointer-events-none"></div>
+        <div class="absolute bottom-0 left-0 w-48 h-48 bg-yellow-300 opacity-15 rounded-full -ml-16 -mb-16 pointer-events-none"></div>
+
+        <div class="max-w-6xl mx-auto px-4 py-6 sm:py-8 relative z-10">
+            <div class="flex flex-col lg:flex-row justify-between items-center gap-6">
+                <!-- العنوان الرئيسي -->
+                <div class="text-center lg:text-right">
+                    <div class="inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm px-4 py-1.5 rounded-full text-sm font-bold mb-3 border border-white/30">
+                        <span>🐍</span>
+                        <span>مادة تقنية المعلومات • الصف العاشر • الوحدة الثانية</span>
+                    </div>
+                    <h1 class="text-2xl sm:text-4xl font-black tracking-tight drop-shadow-md">
+                        معالجة الأخطاء والاستثناءات
+                    </h1>
+                    <p class="text-pink-100 text-sm sm:text-base mt-1 font-semibold">
+                        أوراق العمل التفاعلية (15 & 16) • Debugging & Exceptions
+                    </p>
+                </div>
+
+                <!-- عداد النقاط والدرجات -->
+                <div class="bg-white/95 text-gray-800 rounded-2xl p-4 shadow-lg flex items-center gap-4 border-2 border-yellow-300 min-w-[230px]">
+                    <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center text-2xl shadow-inner">
+                        🏆
+                    </div>
+                    <div>
+                        <p class="text-xs font-bold text-gray-500">مجموع النقاط المكتسبة</p>
+                        <div class="flex items-baseline gap-1">
+                            <span id="total-score" class="text-3xl font-black text-purple-700">0</span>
+                            <span class="text-sm font-bold text-gray-400">/ 100 نقطة</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- شريط بيانات المتعلمة -->
+            <div class="mt-6 bg-white/95 backdrop-blur-md rounded-2xl p-4 sm:p-5 shadow-lg text-gray-800 border-2 border-pink-200">
+                <div id="student-form-container" class="flex flex-col md:flex-row items-center gap-4">
+                    <div class="flex items-center gap-2 text-purple-700 font-extrabold whitespace-nowrap">
+                        <span class="text-2xl">👩‍💻</span>
+                        <span>بيانات المبرمجة المبدعة:</span>
+                    </div>
+                    <div class="w-full md:flex-1">
+                        <input type="text" id="student-name-input" placeholder="اكتبي اسمكِ الثلاثي هنا..." 
+                               class="w-full px-4 py-2.5 rounded-xl border-2 border-purple-200 focus:border-pink-500 focus:outline-none font-bold text-gray-700 bg-purple-50/50 transition">
+                    </div>
+                    <div class="w-full md:w-56">
+                        <input type="text" id="student-class-input" placeholder="الصف / الشعبة (مثال: 10/1)" 
+                               class="w-full px-4 py-2.5 rounded-xl border-2 border-purple-200 focus:border-pink-500 focus:outline-none font-bold text-gray-700 bg-purple-50/50 transition">
+                    </div>
+                    <button onclick="saveStudentInfo()" 
+                            class="w-full md:w-auto px-6 py-2.5 rounded-xl bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white font-bold shadow-md hover:shadow-lg transition transform active:scale-95 whitespace-nowrap">
+                        حفظ البيانات ✨
+                    </button>
+                </div>
+
+                <!-- بطاقة ترحيبية تظهر بعد حفظ الاسم -->
+                <div id="student-welcome-banner" class="hidden flex flex-col sm:flex-row items-center justify-between gap-3 bg-gradient-to-r from-amber-50 via-pink-50 to-cyan-50 p-3.5 rounded-xl border border-pink-300">
+                    <div class="flex items-center gap-3">
+                        <span class="text-3xl">🌟</span>
+                        <div>
+                            <p class="font-extrabold text-purple-800 text-base sm:text-lg">
+                                أهلاً بكِ يا مبدعة المستقبل: <span id="display-student-name" class="text-pink-600 underline decoration-wavy"></span>
+                            </p>
+                            <p class="text-xs sm:text-sm font-bold text-cyan-700">
+                                الصف / الشعبة: <span id="display-student-class" class="bg-cyan-100 px-2 py-0.5 rounded-md"></span> • جاهزة لاكتشاف الأخطاء وترويض الاستثناءات!
+                            </p>
+                        </div>
+                    </div>
+                    <button onclick="editStudentInfo()" class="text-xs font-bold text-purple-600 hover:text-pink-600 bg-white px-3 py-1.5 rounded-lg border border-purple-200 shadow-sm transition">
+                        تعديل البيانات ✏️
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- المحتوى الرئيسي -->
+    <main class="max-w-6xl mx-auto px-4">
+        
+        <!-- أزرار التنقل بين النشاطين -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
+            <button id="tab-btn-1" onclick="switchTab(1)" class="tab-active rounded-2xl p-4 sm:p-5 font-extrabold text-right transition-all duration-300 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <span class="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center text-2xl">🛍️</span>
+                    <div>
+                        <span class="text-xs opacity-90 block">النشاط التفاعلي الأول (ورقة عمل 15)</span>
+                        <span class="text-base sm:text-lg">حساب قيمة فاتورة المشتريات بعد الخصم</span>
+                    </div>
+                </div>
+                <span id="badge-act-1" class="bg-white/25 px-3 py-1 rounded-full text-xs font-bold">0 / 50</span>
+            </button>
+
+            <button id="tab-btn-2" onclick="switchTab(2)" class="tab-inactive rounded-2xl p-4 sm:p-5 font-extrabold text-right transition-all duration-300 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <span class="w-12 h-12 rounded-xl bg-cyan-100 text-cyan-600 flex items-center justify-center text-2xl">⚖️</span>
+                    <div>
+                        <span class="text-xs text-cyan-600 block">النشاط التفاعلي الثاني (ورقة عمل 16)</span>
+                        <span class="text-base sm:text-lg">حاسبة مؤشر كتلة الجسم (BMI)</span>
+                    </div>
+                </div>
+                <span id="badge-act-2" class="bg-purple-100 text-purple-700 px-3 py-1 rounded-full text-xs font-bold">0 / 50</span>
+            </button>
+        </div>
+
+        <!-- ========================================================= -->
+        <!-- النشاط التفاعلي الأول: ورقة عمل 15 (حساب فاتورة المشتريات) -->
+        <!-- ========================================================= -->
+        <section id="activity-1" class="space-y-8">
+            
+            <!-- بطاقة وصف المشكلة -->
+            <div class="glass-card rounded-3xl p-6 shadow-lg border-r-8 border-pink-500">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div>
+                        <span class="bg-pink-100 text-pink-700 text-xs font-extrabold px-3 py-1 rounded-full">مشكلة البرنامج (ورقة عمل 15)</span>
+                        <h2 class="text-xl sm:text-2xl font-black text-gray-800 mt-2">حساب السعر النهائي للفاتورة بعد تطبيق الخصم مع التحقق من صحة المدخلات</h2>
+                        <p class="text-gray-600 text-sm sm:text-base mt-1 leading-relaxed">
+                            نريد كتابة برنامج بلغة Python يستقبل <strong>السعر الأصلي (price)</strong> و<strong>نسبة الخصم (discount)</strong>، ويتحقق من أنها أرقام صحيحة عبر <code class="bg-purple-100 text-purple-800 px-1.5 py-0.5 rounded font-mono text-xs">try - except</code>، ويتأكد منطقياً أن السعر أكبر من صفر، ونسبة الخصم محصورة بين 0% و 100%، ثم يطبع في النهاية <code class="bg-cyan-100 text-cyan-800 px-1.5 py-0.5 rounded font-mono text-xs">Program has ended</code> في جميع الأحوال.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- القسم (أ) و (ب) للنشاط الأول -->
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                
+                <!-- الجزء (أ): تحدي بناء الكود البرمجي (7 أعمدة) -->
+                <div class="lg:col-span-7 glass-card rounded-3xl p-6 shadow-xl border-2 border-purple-200 flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-lg sm:text-xl font-extrabold text-purple-800 flex items-center gap-2">
+                                <span class="bg-purple-600 text-white w-8 h-8 rounded-lg flex items-center justify-center text-sm">أ</span>
+                                <span>تحدي إكمال التعليمات البرمجية</span>
+                            </h3>
+                            <span class="text-xs font-bold bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full">50 نقطة</span>
+                        </div>
+                        <p class="text-sm text-gray-600 mb-4 font-semibold">اختاري الكلمة المفتاحية أو الشرط المنطقي الصحيح لإكمال الفراغات الخمسة في البرنامج:</p>
+
+                        <!-- محرر الكود التفاعلي -->
+                        <div class="bg-slate-900 text-slate-100 rounded-2xl p-4 sm:p-5 code-block text-xs sm:text-sm leading-loose overflow-x-auto shadow-inner border-2 border-slate-700">
+                            <div class="flex items-center gap-2 mb-3 pb-2 border-b border-slate-700">
+                                <span class="w-3 h-3 rounded-full bg-rose-500"></span>
+                                <span class="w-3 h-3 rounded-full bg-amber-400"></span>
+                                <span class="w-3 h-3 rounded-full bg-emerald-500"></span>
+                                <span class="text-slate-400 text-xs ml-2">discount_calculator.py</span>
+                            </div>
+
+                            <div class="space-y-2">
+                                <!-- فراغ 1 -->
+                                <div>
+                                    <span class="text-slate-500 select-none mr-2">1</span>
+                                    <select id="q1_1" class="code-select">
+                                        <option value="">-- اختر (1) --</option>
+                                        <option value="try:">try:</option>
+                                        <option value="except:">except:</option>
+                                        <option value="finally:">finally:</option>
+                                    </select>
+                                </div>
+                                <div class="pl-6">
+                                    <span class="text-slate-500 select-none mr-2">2</span>
+                                    price = <span class="text-yellow-300">float</span>(<span class="text-cyan-300">input</span>(<span class="text-emerald-300">"Enter original price (KWD): "</span>))
+                                </div>
+                                <div class="pl-6">
+                                    <span class="text-slate-500 select-none mr-2">3</span>
+                                    discount = <span class="text-yellow-300">float</span>(<span class="text-cyan-300">input</span>(<span class="text-emerald-300">"Enter discount (%): "</span>))
+                                </div>
+
+                                <!-- فراغ 2 -->
+                                <div class="pl-6">
+                                    <span class="text-slate-500 select-none mr-2">4</span>
+                                    <span class="text-pink-400">if</span> 
+                                    <select id="q1_2" class="code-select">
+                                        <option value="">-- شرط السعر الخاطئ (2) --</option>
+                                        <option value="price <= 0">price &lt;= 0</option>
+                                        <option value="price > 0">price &gt; 0</option>
+                                        <option value="price == 100">price == 100</option>
+                                    </select>:
+                                </div>
+                                <div class="pl-12">
+                                    <span class="text-slate-500 select-none mr-2">5</span>
+                                    <span class="text-cyan-300">print</span>(<span class="text-rose-300">"Error: Price must be greater than zero"</span>)
+                                </div>
+
+                                <!-- فراغ 3 -->
+                                <div class="pl-6">
+                                    <span class="text-slate-500 select-none mr-2">6</span>
+                                    <span class="text-pink-400">elif</span> 
+                                    <select id="q1_3" class="code-select">
+                                        <option value="">-- شرط الخصم الخاطئ (3) --</option>
+                                        <option value="discount >= 0 and discount <= 100">discount &gt;= 0 and discount &lt;= 100</option>
+                                        <option value="discount < 0 or discount > 100">discount &lt; 0 or discount &gt; 100</option>
+                                        <option value="discount == 0">discount == 0</option>
+                                    </select>:
+                                </div>
+                                <div class="pl-12">
+                                    <span class="text-slate-500 select-none mr-2">7</span>
+                                    <span class="text-cyan-300">print</span>(<span class="text-rose-300">"Error: Discount must be between 0% and 100%"</span>)
+                                </div>
+                                <div class="pl-6">
+                                    <span class="text-slate-500 select-none mr-2">8</span>
+                                    <span class="text-pink-400">else</span>:
+                                </div>
+                                <div class="pl-12">
+                                    <span class="text-slate-500 select-none mr-2">9</span>
+                                    net_price = price - (price * discount / <span class="text-amber-300">100</span>)
+                                </div>
+                                <div class="pl-12">
+                                    <span class="text-slate-500 select-none mr-2">10</span>
+                                    <span class="text-cyan-300">print</span>(<span class="text-emerald-300">"Net price after discount is:"</span>, net_price)
+                                </div>
+
+                                <!-- فراغ 4 -->
+                                <div>
+                                    <span class="text-slate-500 select-none mr-2">11</span>
+                                    <select id="q1_4" class="code-select">
+                                        <option value="">-- معالجة خطأ النوع (4) --</option>
+                                        <option value="except ZeroDivisionError:">except ZeroDivisionError:</option>
+                                        <option value="except ValueError:">except ValueError:</option>
+                                        <option value="except NameError:">except NameError:</option>
+                                    </select>
+                                </div>
+                                <div class="pl-6">
+                                    <span class="text-slate-500 select-none mr-2">12</span>
+                                    <span class="text-cyan-300">print</span>(<span class="text-rose-300">"Error: Please enter valid numeric values."</span>)
+                                </div>
+
+                                <!-- فراغ 5 -->
+                                <div>
+                                    <span class="text-slate-500 select-none mr-2">13</span>
+                                    <select id="q1_5" class="code-select">
+                                        <option value="">-- الكتلة الدائمة (5) --</option>
+                                        <option value="else:">else:</option>
+                                        <option value="finally:">finally:</option>
+                                        <option value="break">break</option>
+                                    </select>
+                                </div>
+                                <div class="pl-6">
+                                    <span class="text-slate-500 select-none mr-2">14</span>
+                                    <span class="text-cyan-300">print</span>(<span class="text-amber-300">"Program has ended"</span>)
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- أزرار التحقق والتغذية الراجعة -->
+                    <div class="mt-5">
+                        <div class="flex flex-wrap gap-3">
+                            <button onclick="checkActivity1()" class="flex-1 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-extrabold py-3 px-6 rounded-xl shadow-md hover:shadow-lg transition transform active:scale-95">
+                                تحقق من إجاباتي ✅
+                            </button>
+                            <button onclick="resetActivity1()" class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-3 px-4 rounded-xl transition">
+                                إعادة المحاولة 🔄
+                            </button>
+                        </div>
+                        <div id="feedback-act-1" class="hidden mt-4 p-4 rounded-2xl text-sm font-bold leading-relaxed"></div>
+                    </div>
+                </div>
+
+                <!-- الجزء (ب): محاكي تشغيل البرنامج التفاعلي (5 أعمدة) -->
+                <div class="lg:col-span-5 glass-card rounded-3xl p-6 shadow-xl border-2 border-cyan-200 flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between mb-3">
+                            <h3 class="text-lg sm:text-xl font-extrabold text-cyan-800 flex items-center gap-2">
+                                <span class="bg-cyan-500 text-white w-8 h-8 rounded-lg flex items-center justify-center text-sm">ب</span>
+                                <span>محاكي التشغيل الحي (Live Simulator)</span>
+                            </h3>
+                        </div>
+                        <p class="text-xs sm:text-sm text-gray-600 mb-4">
+                            جربي إدخال قيم متنوعة (أرقام صحيحة، سالبة، خصم أكبر من 100، أو حروف نصية) لمشاهدة مسار تنفيذ الكتل البرمجية!
+                        </p>
+
+                        <!-- أزرار تجارب سريعة -->
+                        <div class="mb-4">
+                            <span class="text-xs font-bold text-gray-500 block mb-1.5">حالات اختبار سريعة:</span>
+                            <div class="flex flex-wrap gap-1.5">
+                                <button onclick="fillSim1('50', '20')" class="text-xs bg-emerald-100 hover:bg-emerald-200 text-emerald-800 font-bold px-2.5 py-1 rounded-lg transition">فاتورة صحيحة (50 د.ك، 20%)</button>
+                                <button onclick="fillSim1('abc', '10')" class="text-xs bg-rose-100 hover:bg-rose-200 text-rose-800 font-bold px-2.5 py-1 rounded-lg transition">نص غير رقمي (ValueError)</button>
+                                <button onclick="fillSim1('-15', '10')" class="text-xs bg-amber-100 hover:bg-amber-200 text-amber-800 font-bold px-2.5 py-1 rounded-lg transition">سعر سالب (-15)</button>
+                                <button onclick="fillSim1('40', '120')" class="text-xs bg-purple-100 hover:bg-purple-200 text-purple-800 font-bold px-2.5 py-1 rounded-lg transition">خصم 120%</button>
+                            </div>
+                        </div>
+
+                        <!-- حقول الإدخال -->
+                        <div class="space-y-3 bg-cyan-50/70 p-4 rounded-2xl border border-cyan-200">
+                            <div>
+                                <label class="block text-xs font-extrabold text-gray-700 mb-1">السعر الأصلي للفاتورة (بالدينار الكويتي):</label>
+                                <input type="text" id="sim1-price" value="50" placeholder="مثال: 50 أو abc" 
+                                       class="w-full px-3.5 py-2 rounded-xl border-2 border-cyan-300 focus:border-pink-500 outline-none font-mono text-left bg-white font-bold" dir="ltr">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-extrabold text-gray-700 mb-1">نسبة الخصم (%):</label>
+                                <input type="text" id="sim1-discount" value="20" placeholder="مثال: 20" 
+                                       class="w-full px-3.5 py-2 rounded-xl border-2 border-cyan-300 focus:border-pink-500 outline-none font-mono text-left bg-white font-bold" dir="ltr">
+                            </div>
+                            <button onclick="runSimulator1()" class="w-full bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white font-extrabold py-2.5 rounded-xl shadow-md transition transform active:scale-95 flex items-center justify-center gap-2">
+                                <span>▶️</span>
+                                <span>تشغيل البرنامج (Run)</span>
+                            </button>
+                        </div>
+
+                        <!-- مؤشر تتبع الكتل البرمجية -->
+                        <div class="mt-4">
+                            <p class="text-xs font-extrabold text-gray-600 mb-2">مسار التنفيذ اللحظي للكتل البرمجية:</p>
+                            <div class="grid grid-cols-4 gap-2 text-center text-xs font-mono font-bold">
+                                <div id="block1-try" class="step-badge p-2 rounded-xl bg-gray-100 text-gray-400 border border-gray-200">try</div>
+                                <div id="block1-if" class="step-badge p-2 rounded-xl bg-gray-100 text-gray-400 border border-gray-200">if / else</div>
+                                <div id="block1-except" class="step-badge p-2 rounded-xl bg-gray-100 text-gray-400 border border-gray-200">except</div>
+                                <div id="block1-finally" class="step-badge p-2 rounded-xl bg-gray-100 text-gray-400 border border-gray-200">finally</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- شاشة المخرجات Console -->
+                    <div class="mt-4">
+                        <div class="flex items-center justify-between bg-slate-800 text-slate-300 px-4 py-1.5 rounded-t-xl text-xs font-bold">
+                            <span>🖥️ Console Output (شاشة المخرجات)</span>
+                            <span class="text-emerald-400">Python 3.13</span>
+                        </div>
+                        <div id="sim1-console" class="bg-slate-950 text-emerald-400 font-mono text-xs p-4 rounded-b-xl min-h-[125px] leading-relaxed border-x-2 border-b-2 border-slate-800" dir="ltr">
+                            <span class="text-slate-500"># اضغطي على "تشغيل البرنامج" لمشاهدة النتيجة هنا...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ========================================================= -->
+        <!-- النشاط التفاعلي الثاني: ورقة عمل 16 (حاسبة مؤشر كتلة الجسم BMI) -->
+        <!-- ========================================================= -->
+        <section id="activity-2" class="hidden space-y-8">
+            
+            <!-- بطاقة وصف المشكلة -->
+            <div class="glass-card rounded-3xl p-6 shadow-lg border-r-8 border-cyan-500">
+                <span class="bg-cyan-100 text-cyan-800 text-xs font-extrabold px-3 py-1 rounded-full">مشكلة البرنامج (ورقة عمل 16)</span>
+                <h2 class="text-xl sm:text-2xl font-black text-gray-800 mt-2">حاسبة مؤشر كتلة الجسم (BMI) واكتشاف الأخطاء وتجاوزها</h2>
+                <p class="text-gray-600 text-sm sm:text-base mt-1 leading-relaxed">
+                    يحسب البرنامج مؤشر كتلة الجسم بالمعادلة <code class="bg-pink-100 text-pink-800 px-2 py-0.5 rounded font-mono text-xs">BMI = weight_kg / (height_m ** 2)</code> داخل حلقة تكرارية، ويحدد الفئة الصحية. يجب استخدام معالجة الاستثناءات لتفادي توقف البرنامج عند إدخال حروف (<code class="font-mono text-xs text-purple-700">ValueError</code>) أو عند إدخال الطول مساوياً للصفر (<code class="font-mono text-xs text-rose-700">ZeroDivisionError</code>).
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                
+                <!-- الجزء (أ): استكمال الكود الناقص في BMI (7 أعمدة) -->
+                <div class="lg:col-span-7 glass-card rounded-3xl p-6 shadow-xl border-2 border-pink-200 flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-lg sm:text-xl font-extrabold text-pink-700 flex items-center gap-2">
+                                <span class="bg-pink-500 text-white w-8 h-8 rounded-lg flex items-center justify-center text-sm">أ</span>
+                                <span>استكمال التعليمات البرمجية لملف BMI.py</span>
+                            </h3>
+                            <span class="text-xs font-bold bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full">50 نقطة</span>
+                        </div>
+                        <p class="text-sm text-gray-600 mb-4 font-semibold">أكملي الفراغات الخمسة في الكود التالي لضمان عمل البرنامج وتجاوز الأخطاء بأمان:</p>
+
+                        <!-- محرر الكود التفاعلي -->
+                        <div class="bg-slate-900 text-slate-100 rounded-2xl p-4 sm:p-5 code-block text-xs sm:text-sm leading-loose overflow-x-auto shadow-inner border-2 border-slate-700">
+                            <div class="flex items-center gap-2 mb-3 pb-2 border-b border-slate-700">
+                                <span class="w-3 h-3 rounded-full bg-rose-500"></span>
+                                <span class="w-3 h-3 rounded-full bg-amber-400"></span>
+                                <span class="w-3 h-3 rounded-full bg-emerald-500"></span>
+                                <span class="text-slate-400 text-xs ml-2">BMI.py</span>
+                            </div>
+
+                            <div class="space-y-1.5">
+                                <div><span class="text-slate-500 mr-2">1</span><span class="text-pink-400">while</span> <span class="text-amber-300">True</span>:</div>
+                                
+                                <!-- فراغ 1 -->
+                                <div class="pl-5">
+                                    <span class="text-slate-500 mr-2">2</span>
+                                    <select id="q2_1" class="code-select">
+                                        <option value="">-- بداية كتلة المحاولة (1) --</option>
+                                        <option value="try:">try:</option>
+                                        <option value="except:">except:</option>
+                                        <option value="def bmi():">def bmi():</option>
+                                    </select>
+                                </div>
+                                <div class="pl-10"><span class="text-slate-500 mr-2">3</span>weight_kg = <span class="text-yellow-300">float</span>(<span class="text-cyan-300">input</span>(<span class="text-emerald-300">'Enter your weight in kg: '</span>))</div>
+                                <div class="pl-10"><span class="text-slate-500 mr-2">4</span>height_m = <span class="text-yellow-300">float</span>(<span class="text-cyan-300">input</span>(<span class="text-emerald-300">'Enter your height in meters: '</span>))</div>
+                                <div class="pl-10"><span class="text-slate-500 mr-2">5</span>bmi_value = weight_kg / (height_m ** <span class="text-amber-300">2</span>)</div>
+                                <div class="pl-10"><span class="text-slate-500 mr-2">6</span><span class="text-cyan-300">print</span>(<span class="text-emerald-300">f'Your BMI is: {bmi_value:.2f}'</span>)</div>
+                                <div class="pl-10"><span class="text-slate-500 mr-2">7</span><span class="text-pink-400">if</span> bmi_value &lt; <span class="text-amber-300">18.5</span>:</div>
+                                <div class="pl-14"><span class="text-slate-500 mr-2">8</span><span class="text-cyan-300">print</span>(<span class="text-emerald-300">'You are underweight.'</span>)</div>
+                                <div class="pl-10"><span class="text-slate-500 mr-2">9</span><span class="text-pink-400">elif</span> bmi_value &gt;= <span class="text-amber-300">18.5</span> <span class="text-pink-400">and</span> bmi_value &lt; <span class="text-amber-300">25</span>:</div>
+                                <div class="pl-14"><span class="text-slate-500 mr-2">10</span><span class="text-cyan-300">print</span>(<span class="text-emerald-300">'You have a normal weight.'</span>)</div>
+                                
+                                <!-- فراغ 2 -->
+                                <div class="pl-10">
+                                    <span class="text-slate-500 mr-2">11</span>
+                                    <select id="q2_2" class="code-select">
+                                        <option value="">-- شرط زيادة الوزن (2) --</option>
+                                        <option value="elif bmi_value >= 25 and bmi_value < 30:">elif bmi_value &gt;= 25 and bmi_value &lt; 30:</option>
+                                        <option value="if bmi_value > 30:">if bmi_value &gt; 30:</option>
+                                        <option value="else:">else:</option>
+                                    </select>
+                                </div>
+                                <div class="pl-14"><span class="text-slate-500 mr-2">12</span><span class="text-cyan-300">print</span>(<span class="text-emerald-300">'You are overweight.'</span>)</div>
+                                <div class="pl-10"><span class="text-slate-500 mr-2">13</span><span class="text-pink-400">else</span>:</div>
+                                <div class="pl-14"><span class="text-slate-500 mr-2">14</span><span class="text-cyan-300">print</span>(<span class="text-emerald-300">'You are obese.'</span>)</div>
+                                
+                                <!-- فراغ 3 -->
+                                <div class="pl-5">
+                                    <span class="text-slate-500 mr-2">15</span>
+                                    <select id="q2_3" class="code-select">
+                                        <option value="">-- معالجة الإدخال النصي (3) --</option>
+                                        <option value="except TypeError:">except TypeError:</option>
+                                        <option value="except ValueError:">except ValueError:</option>
+                                        <option value="except IndexError:">except IndexError:</option>
+                                    </select>
+                                </div>
+                                <div class="pl-10"><span class="text-slate-500 mr-2">16</span><span class="text-cyan-300">print</span>(<span class="text-rose-300">'Error: Please enter valid numbers for weight and height.'</span>)</div>
+
+                                <!-- فراغ 4 -->
+                                <div class="pl-5">
+                                    <span class="text-slate-500 mr-2">17</span>
+                                    <select id="q2_4" class="code-select">
+                                        <option value="">-- معالجة القسمة على صفر (4) --</option>
+                                        <option value="except ZeroDivisionError:">except ZeroDivisionError:</option>
+                                        <option value="except SyntaxError:">except SyntaxError:</option>
+                                        <option value="except NameError:">except NameError:</option>
+                                    </select>
+                                </div>
+                                <div class="pl-10"><span class="text-slate-500 mr-2">18</span><span class="text-cyan-300">print</span>(<span class="text-rose-300">'Error: You cannot divide by zero!'</span>)</div>
+
+                                <!-- فراغ 5 -->
+                                <div class="pl-5">
+                                    <span class="text-slate-500 mr-2">19</span>
+                                    <select id="q2_5" class="code-select">
+                                        <option value="">-- كتلة السؤل عن الاستمرار (5) --</option>
+                                        <option value="finally:">finally:</option>
+                                        <option value="try:">try:</option>
+                                        <option value="elif:">elif:</option>
+                                    </select>
+                                </div>
+                                <div class="pl-10"><span class="text-slate-500 mr-2">20</span>stop_program = <span class="text-cyan-300">input</span>(<span class="text-emerald-300">'Press Enter to continue or Q to quit.'</span>).capitalize()</div>
+                                <div class="pl-10"><span class="text-slate-500 mr-2">21</span><span class="text-pink-400">if</span> stop_program == <span class="text-amber-300">'Q'</span>: <span class="text-pink-400">break</span></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- أزرار التحقق والتغذية الراجعة -->
+                    <div class="mt-5">
+                        <div class="flex flex-wrap gap-3">
+                            <button onclick="checkActivity2()" class="flex-1 bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white font-extrabold py-3 px-6 rounded-xl shadow-md hover:shadow-lg transition transform active:scale-95">
+                                تحقق من إجاباتي ✅
+                            </button>
+                            <button onclick="resetActivity2()" class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-3 px-4 rounded-xl transition">
+                                إعادة المحاولة 🔄
+                            </button>
+                        </div>
+                        <div id="feedback-act-2" class="hidden mt-4 p-4 rounded-2xl text-sm font-bold leading-relaxed"></div>
+                    </div>
+                </div>
+
+                <!-- الجزء (ب): مختبر محاكاة BMI التفاعلي (5 أعمدة) -->
+                <div class="lg:col-span-5 glass-card rounded-3xl p-6 shadow-xl border-2 border-purple-200 flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between mb-3">
+                            <h3 class="text-lg sm:text-xl font-extrabold text-purple-800 flex items-center gap-2">
+                                <span class="bg-purple-600 text-white w-8 h-8 rounded-lg flex items-center justify-center text-sm">ب</span>
+                                <span>مختبر محاكاة BMI التفاعلي</span>
+                            </h3>
+                        </div>
+                        <p class="text-xs sm:text-sm text-gray-600 mb-4">
+                            اختبري البرنامج بقيم حقيقية أو قيم خاطئة لتري كيف يكتشف Python الاستثناءات دون أن يتعطل!
+                        </p>
+
+                        <!-- أزرار تجارب سريعة -->
+                        <div class="mb-4">
+                            <span class="text-xs font-bold text-gray-500 block mb-1.5">حالات اختبار سريعة:</span>
+                            <div class="flex flex-wrap gap-1.5">
+                                <button onclick="fillSim2('58', '1.62')" class="text-xs bg-emerald-100 hover:bg-emerald-200 text-emerald-800 font-bold px-2.5 py-1 rounded-lg transition">وزن مثالي (58 كجم، 1.62 م)</button>
+                                <button onclick="fillSim2('65', '0')" class="text-xs bg-rose-100 hover:bg-rose-200 text-rose-800 font-bold px-2.5 py-1 rounded-lg transition">الطول صفر (ZeroDivisionError)</button>
+                                <button onclick="fillSim2('ستون', '1.60')" class="text-xs bg-amber-100 hover:bg-amber-200 text-amber-800 font-bold px-2.5 py-1 rounded-lg transition">حروف (ValueError)</button>
+                            </div>
+                        </div>
+
+                        <!-- حقول الإدخال -->
+                        <div class="space-y-3 bg-purple-50/70 p-4 rounded-2xl border border-purple-200">
+                            <div>
+                                <label class="block text-xs font-extrabold text-gray-700 mb-1">الوزن بالكيلوجرام (weight_kg):</label>
+                                <input type="text" id="sim2-weight" value="58" placeholder="مثال: 58" 
+                                       class="w-full px-3.5 py-2 rounded-xl border-2 border-purple-300 focus:border-pink-500 outline-none font-mono text-left bg-white font-bold" dir="ltr">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-extrabold text-gray-700 mb-1">الطول بالمتر (height_m):</label>
+                                <input type="text" id="sim2-height" value="1.62" placeholder="مثال: 1.62 أو 0" 
+                                       class="w-full px-3.5 py-2 rounded-xl border-2 border-purple-300 focus:border-pink-500 outline-none font-mono text-left bg-white font-bold" dir="ltr">
+                            </div>
+                            <button onclick="runSimulator2()" class="w-full bg-gradient-to-r from-purple-600 to-pink-500 hover:from-purple-700 hover:to-pink-600 text-white font-extrabold py-2.5 rounded-xl shadow-md transition transform active:scale-95 flex items-center justify-center gap-2">
+                                <span>🚀</span>
+                                <span>احسبي المؤشر واختبري الكود</span>
+                            </button>
+                        </div>
+
+                        <!-- بطاقة المؤشر البصري الملون للنتيجة -->
+                        <div id="bmi-visual-card" class="mt-4 p-4 rounded-2xl bg-gray-100 border-2 border-gray-200 text-center transition-all duration-300">
+                            <p class="text-xs font-bold text-gray-500">المؤشر الصحي البصري</p>
+                            <p id="bmi-visual-value" class="text-2xl font-black text-gray-700 my-1">--</p>
+                            <span id="bmi-visual-badge" class="inline-block px-3 py-1 rounded-full text-xs font-extrabold bg-gray-200 text-gray-600">بانتظار التشغيل</span>
+                        </div>
+                    </div>
+
+                    <!-- شاشة المخرجات Console -->
+                    <div class="mt-4">
+                        <div class="flex items-center justify-between bg-slate-800 text-slate-300 px-4 py-1.5 rounded-t-xl text-xs font-bold">
+                            <span>🖥️ Console Output (شاشة المخرجات)</span>
+                            <span class="text-pink-400">BMI.py</span>
+                        </div>
+                        <div id="sim2-console" class="bg-slate-950 text-emerald-400 font-mono text-xs p-4 rounded-b-xl min-h-[115px] leading-relaxed border-x-2 border-b-2 border-slate-800" dir="ltr">
+                            <span class="text-slate-500"># جربي إدخال القيم ثم اضغطي على زر التشغيل...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- قسم إصدار شهادة الإنجاز في الأسفل -->
+        <div class="mt-12 glass-card rounded-3xl p-6 sm:p-8 shadow-xl border-2 border-yellow-300 text-center bg-gradient-to-r from-amber-50/90 via-white to-pink-50/90">
+            <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-yellow-400 to-pink-500 text-3xl shadow-lg mb-3">
+                🎓
+            </div>
+            <h3 class="text-xl sm:text-2xl font-black text-gray-800">هل أنهيتِ حل النشاطين التفاعليين؟</h3>
+            <p class="text-gray-600 text-sm sm:text-base max-w-xl mx-auto mt-1 mb-5">
+                احصلي الآن على شهادة إنجازكِ الرقمية الملونة باسمكِ وصفكِ ودرجتكِ النهائية، ويمكنكِ طباعتها أو حفظها كملف PDF!
+            </p>
+            <button onclick="openCertificateModal()" class="bg-gradient-to-r from-amber-500 via-pink-500 to-purple-600 hover:from-amber-600 hover:to-purple-700 text-white font-black text-base sm:text-lg px-8 py-3.5 rounded-2xl shadow-xl hover:shadow-2xl transition transform hover:-translate-y-0.5 active:scale-95 inline-flex items-center gap-3">
+                <span>🏅</span>
+                <span>عرض وطباعة شهادة الإنجاز</span>
+            </button>
+        </div>
+
+    </main>
+
+    <!-- نافذة منبثقة (Modal) لشهادة الإنجاز -->
+    <div id="certificate-modal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4 overflow-y-auto">
+        <div class="bg-white rounded-3xl max-w-3xl w-full p-2 sm:p-4 shadow-2xl relative my-8">
+            
+            <!-- إطار الشهادة الزاهي -->
+            <div class="border-8 border-double border-purple-500 rounded-2xl p-6 sm:p-10 text-center relative overflow-hidden bg-gradient-to-br from-pink-50 via-white to-cyan-50">
+                <!-- زوايا زخرفية -->
+                <div class="absolute top-0 right-0 w-24 h-24 bg-gradient-to-bl from-pink-400/20 to-transparent rounded-bl-full"></div>
+                <div class="absolute bottom-0 left-0 w-24 h-24 bg-gradient-to-tr from-cyan-400/20 to-transparent rounded-tr-full"></div>
+
+                <div class="flex justify-center items-center gap-3 mb-2">
+                    <span class="text-3xl">🐍</span>
+                    <span class="text-sm font-extrabold text-purple-700 tracking-wider bg-purple-100 px-4 py-1 rounded-full">مادة تقنية المعلومات • الصف العاشر</span>
+                    <span class="text-3xl">✨</span>
+                </div>
+
+                <h2 class="text-3xl sm:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-pink-600 via-purple-600 to-cyan-600 my-3">
+                    شهادة إنجاز وتفوق برمجي
+                </h2>
+
+                <p class="text-gray-600 font-bold text-base sm:text-lg mt-4">تُمنح هذه الشهادة بكل فخر واعتزاز للمتعلمة المبدعة:</p>
+                
+                <div class="my-4 py-2 px-6 inline-block border-b-4 border-pink-400">
+                    <p id="cert-student-name" class="text-2xl sm:text-3xl font-black text-gray-900">المتعلمة المتميزة</p>
+                </div>
+
+                <p class="text-gray-700 font-bold text-base">
+                    من الصف: <span id="cert-student-class" class="text-purple-700 font-extrabold px-2">العاشر</span>
+                </p>
+
+                <p class="text-gray-600 text-sm sm:text-base max-w-xl mx-auto mt-4 leading-relaxed font-semibold">
+                    وذلك لإتمامها بنجاح الأنشطة التفاعلية لدرس <strong>(معالجة الأخطاء والاستثناءات في لغة بايثون Python)</strong> وتطبيقها العملي لأوراق العمل (15 و 16).
+                </p>
+
+                <!-- صندوق الدرجة -->
+                <div class="mt-6 inline-flex items-center gap-6 bg-white px-8 py-4 rounded-2xl shadow-md border-2 border-yellow-300">
+                    <div>
+                        <span class="block text-xs font-bold text-gray-400">الدرجة المستحقة</span>
+                        <span id="cert-score" class="text-3xl font-black text-emerald-600">0 / 100</span>
+                    </div>
+                    <div class="h-10 w-0.5 bg-gray-200"></div>
+                    <div>
+                        <span class="block text-xs font-bold text-gray-400">التقدير</span>
+                        <span id="cert-grade" class="text-xl font-black text-pink-600">ممتاز 🌟</span>
+                    </div>
+                </div>
+
+                <div class="mt-8 pt-4 border-t border-purple-200 flex justify-between items-center text-xs sm:text-sm font-bold text-gray-500">
+                    <div>التاريخ: <span id="cert-date"></span></div>
+                    <div class="text-purple-700">معلمة مادة تقنية المعلومات 💻</div>
+                </div>
+            </div>
+
+            <!-- أزرار التحكم بالنافذة (تختفي عند الطباعة) -->
+            <div class="no-print flex flex-wrap justify-center gap-3 mt-4">
+                <button onclick="window.print()" class="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-extrabold px-6 py-2.5 rounded-xl shadow-md flex items-center gap-2 transition">
+                    <span>🖨️</span>
+                    <span>طباعة / حفظ كـ PDF</span>
+                </button>
+                <button onclick="closeCertificateModal()" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold px-6 py-2.5 rounded-xl transition">
+                    إغلاق النافذة ✖️
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // حالة التطبيق والدرجات
+        let state = {
+            studentName: '',
+            studentClass: '',
+            score1: 0,
+            score2: 0
+        };
+
+        // عرض رسالة تنبيه عائمة
+        function showToast(message, icon = '✨') {
+            const toast = document.getElementById('toast-message');
+            document.getElementById('toast-text').textContent = message;
+            document.getElementById('toast-icon').textContent = icon;
+            toast.classList.remove('hidden');
+            setTimeout(() => {
+                toast.classList.add('hidden');
+            }, 3000);
+        }
+
+        // إطلاق قصاصات الاحتفال
+        function triggerCelebration() {
+            if (typeof confetti === 'function') {
+                confetti({
+                    particleCount: 80,
+                    spread: 70,
+                    origin: { y: 0.6 },
+                    colors: ['#FF4D8D', '#7C3AED', '#06B6D4', '#FBBF24']
+                });
+            }
+        }
+
+        // حفظ بيانات المتعلمة
+        function saveStudentInfo() {
+            const nameInput = document.getElementById('student-name-input').value.trim();
+            const classInput = document.getElementById('student-class-input').value.trim();
+
+            if (!nameInput) {
+                showToast('يرجى كتابة اسمكِ أولاً يا مبدعة!', '👩‍💻');
+                document.getElementById('student-name-input').focus();
+                return;
+            }
+
+            state.studentName = nameInput;
+            state.studentClass = classInput || 'الصف العاشر';
+
+            document.getElementById('display-student-name').textContent = state.studentName;
+            document.getElementById('display-student-class').textContent = state.studentClass;
+
+            document.getElementById('student-form-container').classList.add('hidden');
+            document.getElementById('student-welcome-banner').classList.remove('hidden');
+            showToast(`أهلاً بكِ يا ${state.studentName}! تم حفظ بياناتكِ بنجاح`, '🌟');
+        }
+
+        // تعديل بيانات المتعلمة
+        function editStudentInfo() {
+            document.getElementById('student-welcome-banner').classList.add('hidden');
+            document.getElementById('student-form-container').classList.remove('hidden');
+        }
+
+        // تحديث عداد النقاط الكلي
+        function updateTotalScore() {
+            const total = state.score1 + state.score2;
+            document.getElementById('total-score').textContent = total;
+            document.getElementById('badge-act-1').textContent = `${state.score1} / 50`;
+            document.getElementById('badge-act-2').textContent = `${state.score2} / 50`;
+        }
+
+        // التبديل بين النشاطين
+        function switchTab(tabNumber) {
+            const btn1 = document.getElementById('tab-btn-1');
+            const btn2 = document.getElementById('tab-btn-2');
+            const act1 = document.getElementById('activity-1');
+            const act2 = document.getElementById('activity-2');
+
+            if (tabNumber === 1) {
+                btn1.className = 'tab-active rounded-2xl p-4 sm:p-5 font-extrabold text-right transition-all duration-300 flex items-center justify-between';
+                btn2.className = 'tab-inactive rounded-2xl p-4 sm:p-5 font-extrabold text-right transition-all duration-300 flex items-center justify-between';
+                act1.classList.remove('hidden');
+                act2.classList.add('hidden');
+            } else {
+                btn2.className = 'tab-active rounded-2xl p-4 sm:p-5 font-extrabold text-right transition-all duration-300 flex items-center justify-between';
+                btn1.className = 'tab-inactive rounded-2xl p-4 sm:p-5 font-extrabold text-right transition-all duration-300 flex items-center justify-between';
+                act2.classList.remove('hidden');
+                act1.classList.add('hidden');
+            }
+        }
+
+        // ==========================================
+        // منطق النشاط الأول (ورقة عمل 15)
+        // ==========================================
+        function checkActivity1() {
+            const answers = {
+                q1_1: 'try:',
+                q1_2: 'price <= 0',
+                q1_3: 'discount < 0 or discount > 100',
+                q1_4: 'except ValueError:',
+                q1_5: 'finally:'
+            };
+
+            let correctCount = 0;
+            for (const [id, correctVal] of Object.entries(answers)) {
+                const el = document.getElementById(id);
+                el.classList.remove('correct', 'wrong');
+                if (el.value === correctVal) {
+                    el.classList.add('correct');
+                    correctCount++;
+                } else {
+                    el.classList.add('wrong');
+                }
+            }
+
+            state.score1 = correctCount * 10;
+            updateTotalScore();
+
+            const feedback = document.getElementById('feedback-act-1');
+            feedback.classList.remove('hidden', 'bg-emerald-100', 'text-emerald-900', 'border-emerald-400', 'bg-amber-100', 'text-amber-900', 'border-amber-400');
+
+            if (correctCount === 5) {
+                feedback.classList.add('bg-emerald-100', 'text-emerald-900', 'border-2', 'border-emerald-400');
+                feedback.innerHTML = `🎉 رائع جداً! حصلتِ على العلامة الكاملة (50/50) في النشاط الأول!<br>لقد أتقنتِ استخدام <code class="font-mono">try</code> و <code class="font-mono">except ValueError</code> والشروط المنطقية و <code class="font-mono">finally</code>.`;
+                triggerCelebration();
+            } else {
+                feedback.classList.add('bg-amber-100', 'text-amber-900', 'border-2', 'border-amber-400');
+                feedback.innerHTML = `💡 أحسنتِ المحاولة! أجبتِ بشكل صحيح على <strong>${correctCount} من 5</strong> فراغات (${state.score1}/50 نقطة).<br>راجعي الحقول المظللة باللون الأحمر: تذكري أن السعر الخاطئ هو <code class="font-mono">price <= 0</code>، والخصم الخاطئ هو <code class="font-mono">discount < 0 or discount > 100</code>.`;
+            }
+        }
+
+        function resetActivity1() {
+            ['q1_1', 'q1_2', 'q1_3', 'q1_4', 'q1_5'].forEach(id => {
+                const el = document.getElementById(id);
+                el.value = '';
+                el.classList.remove('correct', 'wrong');
+            });
+            document.getElementById('feedback-act-1').classList.add('hidden');
+            state.score1 = 0;
+            updateTotalScore();
+        }
+
+        function fillSim1(price, discount) {
+            document.getElementById('sim1-price').value = price;
+            document.getElementById('sim1-discount').value = discount;
+            runSimulator1();
+        }
+
+        function runSimulator1() {
+            const rawPrice = document.getElementById('sim1-price').value.trim();
+            const rawDiscount = document.getElementById('sim1-discount').value.trim();
+            const consoleEl = document.getElementById('sim1-console');
+
+            // إعادة ضبط ألوان الكتل
+            const blocks = ['block1-try', 'block1-if', 'block1-except', 'block1-finally'];
+            blocks.forEach(b => {
+                const el = document.getElementById(b);
+                el.className = 'step-badge p-2 rounded-xl bg-gray-100 text-gray-400 border border-gray-200';
+            });
+
+            // تفعيل try و finally دائماً
+            document.getElementById('block1-try').className = 'step-badge step-active p-2 rounded-xl bg-cyan-500 text-white shadow';
+            document.getElementById('block1-finally').className = 'step-badge step-active p-2 rounded-xl bg-purple-600 text-white shadow';
+
+            let outputLines = [
+                `<span class="text-slate-400">Enter original price (KWD):</span> <span class="text-white">${rawPrice || '""'}</span>`,
+                `<span class="text-slate-400">Enter discount (%):</span> <span class="text-white">${rawDiscount || '""'}</span>`
+            ];
+
+            // محاكاة التحويل إلى float في بايثون
+            const price = Number(rawPrice);
+            const discount = Number(rawDiscount);
+
+            if (rawPrice === '' || rawDiscount === '' || isNaN(price) || isNaN(discount)) {
+                // حدوث ValueError
+                document.getElementById('block1-except').className = 'step-badge step-active p-2 rounded-xl bg-rose-500 text-white shadow';
+                outputLines.push(`<span class="text-rose-400 font-bold">Error: Please enter valid numeric values.</span>`);
+            } else {
+                // نجاح التحويل والانتقال إلى if/else
+                document.getElementById('block1-if').className = 'step-badge step-active p-2 rounded-xl bg-emerald-500 text-white shadow';
+                if (price <= 0) {
+                    outputLines.push(`<span class="text-amber-400 font-bold">Error: Price must be greater than zero</span>`);
+                } else if (discount < 0 || discount > 100) {
+                    outputLines.push(`<span class="text-amber-400 font-bold">Error: Discount must be between 0% and 100%</span>`);
+                } else {
+                    const netPrice = price - (price * discount / 100);
+                    outputLines.push(`<span class="text-emerald-400 font-bold">Net price after discount is: ${netPrice.toFixed(2)} KWD</span>`);
+                }
+            }
+
+            // تنفيذ finally دائماً
+            outputLines.push(`<span class="text-cyan-300">Program has ended</span>`);
+            consoleEl.innerHTML = outputLines.join('<br>');
+        }
+
+        // ==========================================
+        // منطق النشاط الثاني (ورقة عمل 16 - BMI)
+        // ==========================================
+        function checkActivity2() {
+            const answers = {
+                q2_1: 'try:',
+                q2_2: 'elif bmi_value >= 25 and bmi_value < 30:',
+                q2_3: 'except ValueError:',
+                q2_4: 'except ZeroDivisionError:',
+                q2_5: 'finally:'
+            };
+
+            let correctCount = 0;
+            for (const [id, correctVal] of Object.entries(answers)) {
+                const el = document.getElementById(id);
+                el.classList.remove('correct', 'wrong');
+                if (el.value === correctVal) {
+                    el.classList.add('correct');
+                    correctCount++;
+                } else {
+                    el.classList.add('wrong');
+                }
+            }
+
+            state.score2 = correctCount * 10;
+            updateTotalScore();
+
+            const feedback = document.getElementById('feedback-act-2');
+            feedback.classList.remove('hidden', 'bg-emerald-100', 'text-emerald-900', 'border-emerald-400', 'bg-amber-100', 'text-amber-900', 'border-amber-400');
+
+            if (correctCount === 5) {
+                feedback.classList.add('bg-emerald-100', 'text-emerald-900', 'border-2', 'border-emerald-400');
+                feedback.innerHTML = `🌟 مذهل! حصلتِ على العلامة الكاملة (50/50) في النشاط الثاني!<br>أصبح برنامج حساب مؤشر كتلة الجسم محمياً ضد أخطاء القيم النصية والقسمة على صفر.`;
+                triggerCelebration();
+            } else {
+                feedback.classList.add('bg-amber-100', 'text-amber-900', 'border-2', 'border-amber-400');
+                feedback.innerHTML = `💡 محاولة جيدة! أجبتِ بشكل صحيح على <strong>${correctCount} من 5</strong> فراغات (${state.score2}/50 نقطة).<br>تلميح: استخدمي <code class="font-mono">except ZeroDivisionError:</code> لمعالجة الطول عندما يكون صفراً، و <code class="font-mono">finally:</code> للسؤال عن الاستمرار.`;
+            }
+        }
+
+        function resetActivity2() {
+            ['q2_1', 'q2_2', 'q2_3', 'q2_4', 'q2_5'].forEach(id => {
+                const el = document.getElementById(id);
+                el.value = '';
+                el.classList.remove('correct', 'wrong');
+            });
+            document.getElementById('feedback-act-2').classList.add('hidden');
+            state.score2 = 0;
+            updateTotalScore();
+        }
+
+        function fillSim2(weight, height) {
+            document.getElementById('sim2-weight').value = weight;
+            document.getElementById('sim2-height').value = height;
+            runSimulator2();
+        }
+
+        function runSimulator2() {
+            const rawWeight = document.getElementById('sim2-weight').value.trim();
+            const rawHeight = document.getElementById('sim2-height').value.trim();
+            const consoleEl = document.getElementById('sim2-console');
+
+            const card = document.getElementById('bmi-visual-card');
+            const valEl = document.getElementById('bmi-visual-value');
+            const badgeEl = document.getElementById('bmi-visual-badge');
+
+            let outputLines = [
+                `<span class="text-slate-400">Enter your weight in kg:</span> <span class="text-white">${rawWeight || '""'}</span>`,
+                `<span class="text-slate-400">Enter your height in meters:</span> <span class="text-white">${rawHeight || '""'}</span>`
+            ];
+
+            const weight = Number(rawWeight);
+            const height = Number(rawHeight);
+
+            if (rawWeight === '' || rawHeight === '' || isNaN(weight) || isNaN(height)) {
+                // ValueError
+                outputLines.push(`<span class="text-rose-400 font-bold">Error: Please enter valid numbers for weight and height.</span>`);
+                card.className = 'mt-4 p-4 rounded-2xl bg-rose-50 border-2 border-rose-300 text-center transition-all';
+                valEl.textContent = 'ValueError!';
+                valEl.className = 'text-xl font-black text-rose-600 my-1 font-mono';
+                badgeEl.textContent = 'تم التقاط استثناء القيمة غير الرقمية';
+                badgeEl.className = 'inline-block px-3 py-1 rounded-full text-xs font-extrabold bg-rose-200 text-rose-800';
+            } else if (height === 0) {
+                // ZeroDivisionError
+                outputLines.push(`<span class="text-amber-400 font-bold">Error: You cannot divide by zero!</span>`);
+                card.className = 'mt-4 p-4 rounded-2xl bg-amber-50 border-2 border-amber-300 text-center transition-all';
+                valEl.textContent = 'ZeroDivisionError!';
+                valEl.className = 'text-xl font-black text-amber-600 my-1 font-mono';
+                badgeEl.textContent = 'تم منع القسمة على صفر بنجاح';
+                badgeEl.className = 'inline-block px-3 py-1 rounded-full text-xs font-extrabold bg-amber-200 text-amber-800';
+            } else if (weight < 0 || height < 0) {
+                outputLines.push(`<span class="text-amber-300">تنبيه: يفضل إدخال قيم موجبة للوزن والطول.</span>`);
+            } else {
+                const bmi = weight / (height ** 2);
+                outputLines.push(`<span class="text-cyan-300 font-bold">Your BMI is: ${bmi.toFixed(2)}</span>`);
+
+                let categoryMsg = '';
+                let arCategory = '';
+                let cardStyle = '';
+                let badgeStyle = '';
+
+                if (bmi < 18.5) {
+                    categoryMsg = 'You are underweight.';
+                    arCategory = 'نقص في الوزن (Underweight)';
+                    cardStyle = 'bg-sky-50 border-sky-300';
+                    badgeStyle = 'bg-sky-200 text-sky-800';
+                } else if (bmi >= 18.5 && bmi < 25) {
+                    categoryMsg = 'You have a normal weight.';
+                    arCategory = 'وزن مثالي وصحي (Normal Weight) ✨';
+                    cardStyle = 'bg-emerald-50 border-emerald-400';
+                    badgeStyle = 'bg-emerald-200 text-emerald-900';
+                } else if (bmi >= 25 && bmi < 30) {
+                    categoryMsg = 'You are overweight.';
+                    arCategory = 'زيادة في الوزن (Overweight)';
+                    cardStyle = 'bg-amber-50 border-amber-400';
+                    badgeStyle = 'bg-amber-200 text-amber-900';
+                } else {
+                    categoryMsg = 'You are obese.';
+                    arCategory = 'سمنة (Obese)';
+                    cardStyle = 'bg-rose-50 border-rose-400';
+                    badgeStyle = 'bg-rose-200 text-rose-900';
+                }
+
+                outputLines.push(`<span class="text-emerald-400 font-bold">${categoryMsg}</span>`);
+                card.className = `mt-4 p-4 rounded-2xl border-2 text-center transition-all ${cardStyle}`;
+                valEl.textContent = `BMI = ${bmi.toFixed(2)}`;
+                valEl.className = 'text-2xl font-black text-gray-800 my-1 font-mono';
+                badgeEl.textContent = arCategory;
+                badgeEl.className = `inline-block px-3 py-1 rounded-full text-xs font-extrabold ${badgeStyle}`;
+            }
+
+            outputLines.push(`<span class="text-slate-400">Press Enter to continue or Q to quit.</span>`);
+            consoleEl.innerHTML = outputLines.join('<br>');
+        }
+
+        // ==========================================
+        // شهادة الإنجاز
+        // ==========================================
+        function openCertificateModal() {
+            const nameInput = document.getElementById('student-name-input').value.trim();
+            const classInput = document.getElementById('student-class-input').value.trim();
+
+            const finalName = state.studentName || nameInput || 'المتعلمة المبدعة';
+            const finalClass = state.studentClass || classInput || 'الصف العاشر';
+            const total = state.score1 + state.score2;
+
+            let grade = 'ممتاز ومبدع 🌟';
+            if (total === 100) grade = 'امتياز مع مرتبة الشرف 🏆';
+            else if (total >= 80) grade = 'ممتاز جداً ✨';
+            else if (total >= 60) grade = 'جيد جداً 👏';
+            else grade = 'مشاركة مجتهدة 💪';
+
+            document.getElementById('cert-student-name').textContent = finalName;
+            document.getElementById('cert-student-class').textContent = finalClass;
+            document.getElementById('cert-score').textContent = `${total} / 100`;
+            document.getElementById('cert-grade').textContent = grade;
+
+            const today = new Date();
+            document.getElementById('cert-date').textContent = today.toLocaleDateString('ar-KW', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            });
+
+            document.getElementById('certificate-modal').classList.remove('hidden');
+            if (total >= 80) triggerCelebration();
+        }
+
+        function closeCertificateModal() {
+            document.getElementById('certificate-modal').classList.add('hidden');
+        }
+    </script>
+</body>
+</html>
